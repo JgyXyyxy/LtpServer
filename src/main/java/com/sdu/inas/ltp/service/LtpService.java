@@ -1,12 +1,23 @@
 package com.sdu.inas.ltp.service;
 
 
+import com.sdu.inas.ltp.bean.Arg;
+import com.sdu.inas.ltp.bean.Event;
+import com.sdu.inas.ltp.bean.SyntaxResult;
+import com.sdu.inas.ltp.bean.Word;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLConnection;
+import java.text.ParseException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
 public class LtpService {
 
@@ -74,18 +85,85 @@ public class LtpService {
         return result;
     }
 
-    public String getLtpResult(String text) {
+    public SyntaxResult getLtpResult(String text) {
         String para = "s=" + text + "&" + defaultParam;
         String result = sendPost(basicUrl, para);
 
-        System.out.println(result);
-        return result;
+        HashMap<Integer, Word> words = new HashMap<>();
+        ArrayList<Word> verbs = new ArrayList<>();
+        String ns = "未知";
+        String nh = "无";
+        String replace = result.replace(" ", "");
+        System.out.println(replace);
+        String s = replace.substring(2, replace.length() - 2);
+        System.out.println(s);
+//        String s = result.substring(5, result.length() - 2);
+        JSONArray array = JSONArray.fromObject(s);
+        for (int j= 0;j<array.size();j++){
+            JSONObject object = array.getJSONObject(j);
+            Word word = new Word();
+            word.setCont(object.getString("cont"));
+            word.setId(object.getInt("id"));
+            word.setRelate(object.getString("relate"));
+            word.setPos(object.getString("pos"));
+            word.setParent(object.getInt("parent"));
+            if ("ns".equals(word.getPos())){
+                ns = word.getCont();
+            }
+            if ("nh".equals(word.getPos())){
+                nh = word.getCont();
+            }
+            word.setNe(object.getString("ne"));
+            if ("HED".equals(word.getRelate())){
+                Word verb = parseVerb(word, object);
+                words.put(verb.getId(),verb);
+                verbs.add(verb);
+            }else if ("COO".equals(word.getRelate())){
+                Word verb = parseVerb(word, object);
+                words.put(verb.getId(),verb);
+                verbs.add(verb);
+            }else {
+                words.put(word.getId(),word);
+            }
+        }
+
+
+        SyntaxResult syntaxResult = new SyntaxResult();
+        syntaxResult.setNh(nh);
+        syntaxResult.setNs(ns);
+        syntaxResult.setVerbs(verbs);
+        syntaxResult.setWords(words);
+
+        return syntaxResult;
+    }
+
+    public Word parseVerb(Word word, JSONObject object){
+        JSONArray args = object.getJSONArray("arg");
+        ArrayList<Arg> argsList = new ArrayList<>();
+        for (int i = 0;i<args.size();i++){
+            JSONObject o = args.getJSONObject(i);
+            Arg arg = new Arg();
+            arg.setId(o.getInt("id"));
+            arg.setBegin(o.getInt("beg"));
+            arg.setEnd(o.getInt("end"));
+            arg.setType(o.getString("type"));
+            argsList.add(arg);
+        }
+        word.setArgs(argsList);
+        return word;
     }
 
 
 
     public static void main(String[] args) {
         LtpService ltpService = new LtpService();
-        ltpService.getLtpResult("1991年，奥巴马以优等生荣誉从哈佛法学院毕业。");
+        SyntaxResult ltpResult = ltpService.getLtpResult("2008年11月4日，奥巴马正式当选美国总统。");
+        ArrayList<Event> events = new ArrayList<>();
+        try {
+            events = (ArrayList<Event>) ltpResult.dotrans();
+        } catch (ParseException e) {
+
+        }
+        System.out.println("end");
     }
 }
