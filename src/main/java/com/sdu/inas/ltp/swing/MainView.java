@@ -5,11 +5,11 @@ import com.sdu.inas.ltp.bean.SyntaxResult;
 import com.sdu.inas.ltp.service.LtpService;
 
 import javax.swing.*;
-import javax.xml.soap.Text;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MainView extends JFrame {
@@ -17,6 +17,7 @@ public class MainView extends JFrame {
     private JTextArea rta;
     private JTextArea sta;
     private JButton extract;
+    private List result = new ArrayList();
 
     public MainView(String title) throws HeadlessException {
         super(title);
@@ -28,6 +29,7 @@ public class MainView extends JFrame {
         JScrollPane rsp = new JScrollPane(rta);
         rsp.setBounds(13, 10, 350, 200);
         rsp.setVerticalScrollBarPolicy( JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        rta.setFont(new Font("宋体",Font.BOLD,14));
 
         sta= new JTextArea();
         JScrollPane ssp = new JScrollPane(sta);
@@ -35,6 +37,7 @@ public class MainView extends JFrame {
         ssp.setVerticalScrollBarPolicy( JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         sta.setLineWrap(true);
         sta.setWrapStyleWord(true);
+        sta.setFont(new Font("宋体",Font.BOLD,14));
 
         extract = new JButton("提取");
         extract.setBounds(373,95,80,40);
@@ -42,18 +45,23 @@ public class MainView extends JFrame {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String text = rta.getText();
-                LtpService ltpService = new LtpService();
-                SyntaxResult ltpResult = ltpService.getLtpResult(text);
-                try {
-                    List<Event> events = ltpResult.dotrans();
-                    sta.setText("");
-                    for (Event event:events){
-                      sta.append(event.toString()+"\r\n");
+                String[] split = text.split("[。？！]");
+                sta.setText("");
+                for (String s:split){
+                    LtpService ltpService = new LtpService();
+                    SyntaxResult ltpResult = ltpService.getLtpResult(s);
+                    try {
+                        List<Event> events = ltpResult.dotrans();
+                        for (Event event:events){
+                            sta.append(event.toString()+"\r\n");
+                        }
+                    } catch (ParseException e1) {
+                        System.out.println("trans error");
                     }
-                } catch (ParseException e1) {
-                    System.out.println("trans error");
+                    System.out.println(ltpResult);
                 }
-                System.out.println(ltpResult);
+
+
             }
         });
 
