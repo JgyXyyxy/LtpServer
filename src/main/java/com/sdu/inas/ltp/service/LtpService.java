@@ -14,6 +14,7 @@ import java.net.URLConnection;
 import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
 public class LtpService {
@@ -92,6 +93,7 @@ public class LtpService {
         ArrayList<Integer> nl = new ArrayList<>();
         ArrayList<Integer> nh = new ArrayList<>();
         ArrayList<Integer> nt = new ArrayList<>();
+        Word core = new Word();
 
         String replace = result.replace(" ", "");
         System.out.println(replace);
@@ -119,6 +121,9 @@ public class LtpService {
             if ("nt".equals(word.getPos())) {
                 nt.add(word.getId());
             }
+            if ("HED".equals(word.getRelate())){
+                core = word;
+            }
             word.setNe(object.getString("ne"));
             words.add(word);
             JSONArray args = object.getJSONArray("arg");
@@ -133,6 +138,16 @@ public class LtpService {
         syntaxResult.setNl(nl);
         syntaxResult.setNs(ns);
         syntaxResult.setNt(nt);
+
+        Iterator<Word> iterator = verbs.iterator();
+        while(iterator.hasNext()){
+            Word w = iterator.next();
+            if(!"HED".equals(w.getRelate())){
+                if (!("COO".equals(w.getRelate())&&(w.getParent()==core.getId()))){
+                    iterator.remove();
+                }
+            }
+        }
         syntaxResult.setVerbs(verbs);
         syntaxResult.setWords(words);
 
@@ -158,7 +173,7 @@ public class LtpService {
 
     public static void main(String[] args) {
         LtpService ltpService = new LtpService();
-        SyntaxResult syntaxResult = ltpService.getLtpResult("1840年7月5日，英国炮轰中国定海县城，第一次鸦片战争爆发。");
+        SyntaxResult syntaxResult = ltpService.getLtpResult("1848年，马克思和恩格斯共同完成了《共产党宣言》。");
         try {
             syntaxResult.verbs2Event();
             PreFeatures preFeatures = new PreFeatures(syntaxResult);

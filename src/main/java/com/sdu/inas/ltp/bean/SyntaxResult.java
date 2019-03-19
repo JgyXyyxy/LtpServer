@@ -87,7 +87,7 @@ public class SyntaxResult {
                         event.setDetails(des.toString());
                         if ("HED".equals(verb.getRelate())) {
                             coreEvent.add(event);
-                        } else {
+                        } else if ("COO".equals(verb.getRelate())){
                             subEvent.add(event);
                         }
                     }
@@ -99,7 +99,7 @@ public class SyntaxResult {
                     event.setDetails(des.toString());
                     if ("HED".equals(verb.getRelate())) {
                         coreEvent.add(event);
-                    } else {
+                    } else if ("COO".equals(verb.getRelate())){
                         subEvent.add(event);
                     }
                 }

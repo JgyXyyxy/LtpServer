@@ -1,6 +1,7 @@
 package com.sdu.inas.ltp.swing;
 
 import com.sdu.inas.ltp.bean.Event;
+import com.sdu.inas.ltp.bean.PreFeatures;
 import com.sdu.inas.ltp.bean.SyntaxResult;
 import com.sdu.inas.ltp.service.LtpService;
 
@@ -22,48 +23,87 @@ public class MainView extends JFrame {
     public MainView(String title) throws HeadlessException {
         super(title);
         this.setLayout(null);
-        this.setSize(850,270);
-        rta= new JTextArea();
+        this.setSize(850, 270);
+        rta = new JTextArea();
         rta.setLineWrap(true);
         rta.setWrapStyleWord(true);
         JScrollPane rsp = new JScrollPane(rta);
         rsp.setBounds(13, 10, 350, 200);
-        rsp.setVerticalScrollBarPolicy( JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
-        rta.setFont(new Font("宋体",Font.BOLD,14));
+        rsp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        rta.setFont(new Font("宋体", Font.BOLD, 14));
 
-        sta= new JTextArea();
+        sta = new JTextArea();
         JScrollPane ssp = new JScrollPane(sta);
         ssp.setBounds(465, 10, 350, 200);
-        ssp.setVerticalScrollBarPolicy( JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+        ssp.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
         sta.setLineWrap(true);
         sta.setWrapStyleWord(true);
-        sta.setFont(new Font("宋体",Font.BOLD,14));
+        sta.setFont(new Font("宋体", Font.BOLD, 14));
 
         extract = new JButton("提取");
-        extract.setBounds(373,95,80,40);
-       /* extract.addActionListener(new ActionListener() {
+        extract.setBounds(373, 95, 80, 40);
+        extract.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String text = rta.getText();
                 String[] split = text.split("[。？！]");
                 sta.setText("");
-                for (String s:split){
+                for (String s : split) {
                     LtpService ltpService = new LtpService();
-                    SyntaxResult ltpResult = ltpService.getLtpResult(s);
+                    SyntaxResult syntaxResult = ltpService.getLtpResult(s);
                     try {
-                        List<Event> events = ltpResult.dotrans();
-                        for (Event event:events){
-                            sta.append(event.toString()+"\r\n");
+                        syntaxResult.verbs2Event();
+                        PreFeatures preFeatures = new PreFeatures(syntaxResult);
+                        preFeatures.preParse();
+                        System.out.println(preFeatures);
+                        List<Event> coreEvent = syntaxResult.getCoreEvent();
+                        sta.append("核心事件: "+ "\r\n");
+                        for (int i =0;i<coreEvent.size();i++){
+                            Event event = coreEvent.get(i);
+                            if ("".equals(event.getEntityName())){
+                                event.setEntityName(preFeatures.getPreObj());
+                            }else {
+                                preFeatures.setPreObj(event.getEntityName());
+                            }
+                            if ("".equals(event.getSite())){
+                                event.setSite(preFeatures.getPreLoc());
+                            }else {
+                                preFeatures.setPreLoc(event.getSite());
+                            }
+                            if ("".equals(event.getTs())){
+                                event.setTs(preFeatures.getPreTs());
+                            }else {
+                                preFeatures.setPreTs(event.getTs());
+                            }
+                            sta.append(event.toString()+ "\r\n");
                         }
-                    } catch (ParseException e1) {
-                        System.out.println("trans error");
+                        List<Event> subEvent = syntaxResult.getSubEvent();
+                        if (subEvent.size()!=0){
+                            sta.append("子事件列表:"+ "\r\n");
+                            for (int i =0;i<subEvent.size();i++){
+                                Event event = subEvent.get(i);
+                                if ("".equals(event.getEntityName())){
+                                    event.setEntityName(preFeatures.getPreObj());
+                                }
+                                if ("".equals(event.getSite())){
+                                    event.setSite(preFeatures.getPreLoc());
+                                }
+                                if ("".equals(event.getTs())){
+                                    event.setTs(preFeatures.getPreTs());
+                                }
+                                sta.append(event.toString()+ "\r\n");
+                            }
+                        }
+
+                    } catch (ParseException ex) {
+                        ex.printStackTrace();
                     }
-                    System.out.println(ltpResult);
+                    sta.append("-------------------------------------"+"\r\n");
                 }
 
 
             }
-        });*/
+        });
 
 
         this.add(rsp);
