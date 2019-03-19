@@ -1,10 +1,7 @@
 package com.sdu.inas.ltp.service;
 
 
-import com.sdu.inas.ltp.bean.Arg;
-import com.sdu.inas.ltp.bean.Event;
-import com.sdu.inas.ltp.bean.SyntaxResult;
-import com.sdu.inas.ltp.bean.Word;
+import com.sdu.inas.ltp.bean.*;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
@@ -89,17 +86,20 @@ public class LtpService {
         String para = "s=" + text + "&" + defaultParam;
         String result = sendPost(basicUrl, para);
 
-        HashMap<Integer, Word> words = new HashMap<>();
+        ArrayList<Word> words = new ArrayList<>();
         ArrayList<Word> verbs = new ArrayList<>();
-        String ns = "未知";
-        String nh = "无";
+        ArrayList<Integer> ns = new ArrayList<>();
+        ArrayList<Integer> nl = new ArrayList<>();
+        ArrayList<Integer> nh = new ArrayList<>();
+        ArrayList<Integer> nt = new ArrayList<>();
+
         String replace = result.replace(" ", "");
         System.out.println(replace);
         String s = replace.substring(2, replace.length() - 2);
         System.out.println(s);
 //        String s = result.substring(5, result.length() - 2);
         JSONArray array = JSONArray.fromObject(s);
-        for (int j= 0;j<array.size();j++){
+        for (int j = 0; j < array.size(); j++) {
             JSONObject object = array.getJSONObject(j);
             Word word = new Word();
             word.setCont(object.getString("cont"));
@@ -107,40 +107,42 @@ public class LtpService {
             word.setRelate(object.getString("relate"));
             word.setPos(object.getString("pos"));
             word.setParent(object.getInt("parent"));
-            if ("ns".equals(word.getPos())){
-                ns = word.getCont();
+            if ("ns".equals(word.getPos())) {
+                ns.add(word.getId());
             }
-            if ("nh".equals(word.getPos())){
-                nh = word.getCont();
+            if ("nl".equals(word.getPos())) {
+                nl.add(word.getId());
+            }
+            if ("nh".equals(word.getPos())) {
+                nh.add(word.getId());
+            }
+            if ("nt".equals(word.getPos())) {
+                nt.add(word.getId());
             }
             word.setNe(object.getString("ne"));
-            if ("HED".equals(word.getRelate())){
+            words.add(word);
+            JSONArray args = object.getJSONArray("arg");
+            if (args.size()!= 0){
                 Word verb = parseVerb(word, object);
-                words.put(verb.getId(),verb);
                 verbs.add(verb);
-            }else if ("COO".equals(word.getRelate())){
-                Word verb = parseVerb(word, object);
-                words.put(verb.getId(),verb);
-                verbs.add(verb);
-            }else {
-                words.put(word.getId(),word);
             }
         }
 
-
         SyntaxResult syntaxResult = new SyntaxResult();
         syntaxResult.setNh(nh);
+        syntaxResult.setNl(nl);
         syntaxResult.setNs(ns);
+        syntaxResult.setNt(nt);
         syntaxResult.setVerbs(verbs);
         syntaxResult.setWords(words);
 
         return syntaxResult;
     }
 
-    public Word parseVerb(Word word, JSONObject object){
+    public Word parseVerb(Word word, JSONObject object) {
         JSONArray args = object.getJSONArray("arg");
         ArrayList<Arg> argsList = new ArrayList<>();
-        for (int i = 0;i<args.size();i++){
+        for (int i = 0; i < args.size(); i++) {
             JSONObject o = args.getJSONObject(i);
             Arg arg = new Arg();
             arg.setId(o.getInt("id"));
@@ -154,15 +156,54 @@ public class LtpService {
     }
 
 
-
     public static void main(String[] args) {
         LtpService ltpService = new LtpService();
-        SyntaxResult ltpResult = ltpService.getLtpResult("2008年11月4日，奥巴马正式当选美国总统。");
-        ArrayList<Event> events = new ArrayList<>();
+        SyntaxResult syntaxResult = ltpService.getLtpResult("1840年7月5日，英国炮轰中国定海县城，第一次鸦片战争爆发。");
         try {
-            events = (ArrayList<Event>) ltpResult.dotrans();
-        } catch (ParseException e) {
+            syntaxResult.verbs2Event();
+            PreFeatures preFeatures = new PreFeatures(syntaxResult);
+            preFeatures.preParse();
+            System.out.println(preFeatures);
+            List<Event> coreEvent = syntaxResult.getCoreEvent();
+            System.out.println("core: ");
+            for (int i =0;i<coreEvent.size();i++){
+                Event event = coreEvent.get(i);
+                if ("".equals(event.getEntityName())){
+                    event.setEntityName(preFeatures.getPreObj());
+                }else {
+                    preFeatures.setPreObj(event.getEntityName());
+                }
+                if ("".equals(event.getSite())){
+                    event.setSite(preFeatures.getPreLoc());
+                }else {
+                    preFeatures.setPreLoc(event.getSite());
+                }
+                if ("".equals(event.getTs())){
+                    event.setTs(preFeatures.getPreTs());
+                }else {
+                    preFeatures.setPreTs(event.getTs());
+                }
+                System.out.println(event);
+            }
+            List<Event> subEvent = syntaxResult.getSubEvent();
+            System.out.println("sub:");
+            for (int i =0;i<subEvent.size();i++){
+                Event event = subEvent.get(i);
+                if ("".equals(event.getEntityName())){
+                    event.setEntityName(preFeatures.getPreObj());
+                }
+                if ("".equals(event.getSite())){
+                    event.setSite(preFeatures.getPreLoc());
+                }
+                if ("".equals(event.getTs())){
+                    event.setTs(preFeatures.getPreTs());
+                }
+                System.out.println(event);
+            }
 
+
+        } catch (ParseException e) {
+            e.printStackTrace();
         }
         System.out.println("end");
     }

@@ -41,7 +41,7 @@ public class MainView extends JFrame {
 
         extract = new JButton("提取");
         extract.setBounds(373,95,80,40);
-        extract.addActionListener(new ActionListener() {
+       /* extract.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
                 String text = rta.getText();
@@ -63,7 +63,7 @@ public class MainView extends JFrame {
 
 
             }
-        });
+        });*/
 
 
         this.add(rsp);

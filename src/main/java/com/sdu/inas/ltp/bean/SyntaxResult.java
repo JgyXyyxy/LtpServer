@@ -10,155 +10,119 @@ import java.util.regex.Pattern;
 
 @Data
 public class SyntaxResult {
-    private Map<Integer, Word> words = new HashMap<>();
+    private List<Word> words = new ArrayList<>();
     private List<Word> verbs = new ArrayList<>();
-    private String nh;
-    private String ns;
+    private List<Integer> ns = new ArrayList<>();
+    private List<Integer> nl = new ArrayList<>();
+    private List<Integer> nh = new ArrayList<>();
+    private List<Integer> nt = new ArrayList<>();
+    private List<Event> coreEvent = new ArrayList<>();
+    private List<Event> subEvent = new ArrayList<>();
 
     public SyntaxResult() {
     }
 
-    public List<Event>  dotrans() throws ParseException {
-        ArrayList<Event> events = new ArrayList<>();
-        for (Word verb:verbs){
-            List<Event> eventList = transVerbToEvent(verb);
-            if (eventList.size()!=0){
-                events.addAll(eventList);
-            }
-        }
 
-        return events;
-    }
+    public void verbs2Event() throws ParseException {
 
-    public List<Event> transVerbToEvent(Word verb) throws ParseException {
+        if (verbs.size() != 0) {
+            for (Word verb : verbs) {
+                List<Arg> args = verb.getArgs();
+                Iterator<Arg> iterator = args.iterator();
+                StringBuilder time = new StringBuilder();
+                StringBuilder position = new StringBuilder();
+                ArrayList<Integer> a1 = new ArrayList<>();
+                ArrayList<Integer> a0 = new ArrayList<>();
+                ArrayList<String> nameList = new ArrayList<>();
 
-        ArrayList<Event> eventList = new ArrayList<>();
-        List<Arg> args = verb.getArgs();
-        Iterator<Arg> iterator = args.iterator();
-        StringBuilder time = new StringBuilder();
-        StringBuilder position = new StringBuilder();
-        ArrayList<Integer> a1 = new ArrayList<>();
-        ArrayList<Integer> a0 = new ArrayList<>();
-        ArrayList<String> nameList = new ArrayList<>();
+                while (iterator.hasNext()) {
+                    Arg arg = iterator.next();
+                    if ("TMP".equals(arg.getType())) {
+                        int begin = arg.getBegin();
+                        int end = arg.getEnd();
+                        for (int i = begin; i <= end; i++) {
+                            time.append(words.get(i).getCont());
+                        }
+                    }
+                    if ("LOC".equals(arg.getType())) {
+                        int begin = arg.getBegin();
+                        int end = arg.getEnd();
+                        for (int i = begin; i <= end; i++) {
+                            position.append(words.get(i).getCont());
+                        }
+                    }
+                    if ("A1".equals(arg.getType())) {
+                        int begin = arg.getBegin();
+                        int end = arg.getEnd();
+                        for (int i = begin; i <= end; i++) {
+                            a1.add(i);
+                        }
+                    }
 
-        while (iterator.hasNext()) {
-            Arg arg = iterator.next();
-            if ("TMP".equals(arg.getType())) {
-                int begin = arg.getBegin();
-                int end = arg.getEnd();
-                for (int i = begin; i <= end; i++) {
-                    time.append(words.get(i).getCont());
+                    if ("A0".equals(arg.getType())) {
+                        int begin = arg.getBegin();
+                        int end = arg.getEnd();
+                        for (int i = begin; i <= end; i++) {
+                            a0.add(i);
+                            nameList = findEntityNameList(a0, verb.getId());
+                        }
+                    }
                 }
-            }
-            if ("LOC".equals(arg.getType())) {
-                int begin = arg.getBegin();
-                int end = arg.getEnd();
-                for (int i = begin; i <= end; i++) {
-                    position.append(words.get(i).getCont());
+
+                String s = transTimeStr(time.toString());
+
+                a1.add(verb.getId());
+                Collections.sort(a1);
+                StringBuffer des = new StringBuffer();
+                for (int i = 0; i < a1.size(); i++) {
+                    des.append(words.get(a1.get(i)).getCont());
                 }
-            }
-            if ("A1".equals(arg.getType())) {
-                int begin = arg.getBegin();
-                int end = arg.getEnd();
-                for (int i = begin;i<=end; i++){
-                    a1.add(i);
-                }
-            }
 
-            if ("A0".equals(arg.getType())) {
-                int begin = arg.getBegin();
-                int end = arg.getEnd();
-                for (int i = begin; i <= end; i++) {
-//                    name.append(words.get(i).getCont());
-                    a0.add(i);
-                    nameList = findEntityNameList(a0,verb.getId());
-                }
-            }
-        }
-
-        String s = transTimeStr(time.toString());
-        time.setLength(0);
-        time.append(s);
-//        if ("Not Found".equals(s)) {
-//            String timeInSem = findTimeInSem(verb.getId());
-//            if (!"No timeTag".equals(timeInSem)) {
-//                time.append(timeInSem);
-//            }
-//        } else {
-//            time.append(s);
-//        }
-
-        a1.add(verb.getId());
-        Collections.sort(a1);
-        StringBuffer des = new StringBuffer();
-        for (int i = 0;i<a1.size();i++){
-            des.append(words.get(a1.get(i)).getCont());
-        }
-
-        if (time.length()>0){
-            for (String entityName: nameList){
-                Event event = new Event();
-                event.setEntityName(entityName);
-                if("".equals(position.toString())){
-                    event.setSite(ns);
+                if (nameList.size() != 0) {
+                    for (String entityName : nameList) {
+                        Event event = new Event();
+                        event.setEntityName(entityName);
+                        event.setTs(s);
+                        event.setSite(position.toString());
+                        event.setDetails(des.toString());
+                        if ("HED".equals(verb.getRelate())) {
+                            coreEvent.add(event);
+                        } else {
+                            subEvent.add(event);
+                        }
+                    }
                 }else {
+                    Event event = new Event();
+                    event.setEntityName("");
+                    event.setTs(s);
                     event.setSite(position.toString());
+                    event.setDetails(des.toString());
+                    if ("HED".equals(verb.getRelate())) {
+                        coreEvent.add(event);
+                    } else {
+                        subEvent.add(event);
+                    }
                 }
-                event.setDetails(des.toString());
-                event.setTs(time.toString());
-                eventList.add(event);
             }
         }
 
-
-        return eventList;
     }
 
     private ArrayList<String> findEntityNameList(ArrayList<Integer> a0, int id) {
         ArrayList<String> nameList = new ArrayList<>();
-        for (int i :a0){
+        for (int i : a0) {
             Word sbvWord = words.get(i);
-            if (("SBV".equals(sbvWord.getRelate()))&&(id == sbvWord.getParent())) {
+            if (("SBV".equals(sbvWord.getRelate())) && (id == sbvWord.getParent())) {
                 nameList.add(sbvWord.getCont());
-                for (int j :a0){
+                for (int j : a0) {
                     Word cooWord = words.get(j);
-                    if (("COO".equals(cooWord.getRelate()))&&(sbvWord.getId() == cooWord.getParent())){
+                    if (("COO".equals(cooWord.getRelate())) && (sbvWord.getId() == cooWord.getParent())) {
                         nameList.add(cooWord.getCont());
                     }
                 }
             }
         }
-        return  nameList;
-    }
-
-
-    private String findTimeInSem(int verbId) throws ParseException {
-        StringBuilder timeInSem = new StringBuilder();
-        for (Word word :words.values()){
-            if ((word.getSemparent() == verbId)&&("Time".equals(word.getSemrelate()))){
-                ArrayList<Integer> tmodList = new ArrayList<>();
-                tmodList.add(word.getId());
-                findTmodForParent(word.getId(),tmodList);
-                Collections.sort(tmodList);
-                for (int i : tmodList){
-                    timeInSem.append(words.get(i).getCont());
-                }
-            }
-        }
-        String transTimeStr = transTimeStr(timeInSem.toString());
-        if ("Not Found".equals(transTimeStr)){
-            return "No timeTag";
-        }
-        return transTimeStr;
-    }
-
-    private void findTmodForParent(int timeId,List tmodList) {
-        for (Word word :words.values()){
-            if ((word.getSemparent() == timeId)&&("Tmod".equals(word.getSemrelate()))){
-                tmodList.add(word.getId());
-                findTmodForParent(word.getId(),tmodList);
-            }
-        }
+        return nameList;
     }
 
 
@@ -191,14 +155,12 @@ public class SyntaxResult {
                     SimpleDateFormat sdf0 = new SimpleDateFormat("yyyy");
                     time.append(sdf0.format(d1));
                 } else {
-                    time.append("Not Found");
+                    time.append("");
                 }
             }
         }
         return time.toString();
     }
-
-
 
 
     public static void main(String[] args) throws ParseException {
